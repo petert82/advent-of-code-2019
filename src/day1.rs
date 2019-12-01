@@ -21,12 +21,17 @@ fn total_fuel_for_modules(masses: &str) -> Result<i64, Error> {
 }
 
 fn fuel_for_modules(masses: &str) -> Result<Vec<i64>, Error> {
-    masses.lines().map(|mass| fuel_for_module(mass)).collect()
+    Ok(masses
+        .lines()
+        .map(|line| line.parse::<i64>())
+        .collect::<Result<Vec<_>, _>>()?
+        .into_iter()
+        .map(|mass| fuel_for_module(mass))
+        .collect())
 }
 
-fn fuel_for_module(mass: &str) -> Result<i64, Error> {
-    let num_mass = mass.parse::<i64>()?;
-    Ok((num_mass / 3) - 2)
+fn fuel_for_module(mass: i64) -> i64 {
+    (mass / 3) - 2
 }
 
 #[cfg(test)]
@@ -35,10 +40,10 @@ mod tests {
 
     #[test]
     fn test_fuel_for_module() {
-        assert_eq!(fuel_for_module("12"), Ok(2));
-        assert_eq!(fuel_for_module("14"), Ok(2));
-        assert_eq!(fuel_for_module("1969"), Ok(654));
-        assert_eq!(fuel_for_module("100756"), Ok(33583));
+        assert_eq!(fuel_for_module(12), 2);
+        assert_eq!(fuel_for_module(14), 2);
+        assert_eq!(fuel_for_module(1969), 654);
+        assert_eq!(fuel_for_module(100756), 33583);
     }
 
     #[test]
