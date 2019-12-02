@@ -3,7 +3,7 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::path::Path;
 
-pub fn get_input(file: &str) -> String {
+pub fn as_string(file: &str) -> String {
     let path = Path::new("./input").join(file);
     let display = path.display();
 
@@ -19,4 +19,12 @@ pub fn get_input(file: &str) -> String {
     }
 
     s
+}
+
+pub fn parse_comma_separated_ints(file: &str) -> Vec<i64> {
+    if let Ok(ints) = as_string(file).split(',').map(str::parse::<i64>).collect() {
+        return ints;
+    }
+
+    panic!("Couldn't parse input into a list of integers")
 }
