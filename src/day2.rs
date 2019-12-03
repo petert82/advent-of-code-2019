@@ -1,25 +1,11 @@
 use std::fmt;
 
+#[derive(Debug, PartialEq)]
 enum OpCode {
     Add,
     Multiply,
     Exit,
     Unknown,
-}
-
-#[derive(Debug, PartialEq)]
-enum Error {
-    InvalidProgram,
-    UnknownOpCode(i64),
-}
-
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Error::InvalidProgram => write!(f, "Program is invalid"),
-            Error::UnknownOpCode(op_code) => write!(f, "Unknown op code: {}", op_code),
-        }
-    }
 }
 
 impl From<i64> for OpCode {
@@ -33,22 +19,44 @@ impl From<i64> for OpCode {
     }
 }
 
+#[derive(Debug, PartialEq)]
+enum Error {
+    ProgramTooShort,
+    NotEnoughParams(OpCode),
+    SegFault,
+    UnknownOpCode(i64),
+}
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Error::ProgramTooShort => write!(f, "Program is too short"),
+            Error::NotEnoughParams(op) => write!(f, "Not enough parameters for {:?} operation", op),
+            Error::SegFault => write!(f, "Segmentation fault"),
+            Error::UnknownOpCode(op_code) => write!(f, "Unknown op code: {}", op_code),
+        }
+    }
+}
+
 type Program = Vec<i64>;
 
 pub fn part1(input: Program) {
-    match fix_program(input).and_then(run_intcode) {
-        Ok(ints) => println!("Result is: {:?}", ints),
+    match set_input(input, 12, 2).and_then(run_intcode) {
+        Ok(mem) => println!("Output is: {}", mem[0]),
         Err(e) => println!("{}", e),
     }
 }
 
-fn fix_program(mut prog: Program) -> Result<Program, Error> {
+const NOUN_INDEX: usize = 1;
+const VERB_INDEX: usize = 2;
+
+fn set_input(mut prog: Program, noun: i64, verb: i64) -> Result<Program, Error> {
     if prog.len() < 3 {
-        return Err(Error::InvalidProgram);
+        return Err(Error::ProgramTooShort);
     }
 
-    prog[1] = 12;
-    prog[2] = 2;
+    prog[NOUN_INDEX] = noun;
+    prog[VERB_INDEX] = verb;
 
     Ok(prog)
 }
@@ -56,7 +64,7 @@ fn fix_program(mut prog: Program) -> Result<Program, Error> {
 fn run_intcode(mut prog: Program) -> Result<Program, Error> {
     let len = prog.len();
     if len < 1 {
-        return Err(Error::InvalidProgram);
+        return Err(Error::ProgramTooShort);
     }
 
     let mut i = 0;
@@ -64,26 +72,26 @@ fn run_intcode(mut prog: Program) -> Result<Program, Error> {
     while i < len {
         match OpCode::from(prog[i]) {
             OpCode::Add => {
-                if (i + 3) > len {
-                    return Err(Error::InvalidProgram);
+                if (i + 3) >= len {
+                    return Err(Error::NotEnoughParams(OpCode::Add));
                 }
                 let src1 = prog[i + 1] as usize;
                 let src2 = prog[i + 2] as usize;
                 let dest = prog[i + 3] as usize;
                 if src1 >= len || src2 >= len || dest >= len {
-                    return Err(Error::InvalidProgram);
+                    return Err(Error::SegFault);
                 }
                 prog[dest] = prog[src1] + prog[src2];
             }
             OpCode::Multiply => {
-                if (i + 3) > len {
-                    return Err(Error::InvalidProgram);
+                if (i + 3) >= len {
+                    return Err(Error::NotEnoughParams(OpCode::Multiply));
                 }
                 let src1 = prog[i + 1] as usize;
                 let src2 = prog[i + 2] as usize;
                 let dest = prog[i + 3] as usize;
                 if src1 >= len || src2 >= len || dest >= len {
-                    return Err(Error::InvalidProgram);
+                    return Err(Error::SegFault);
                 }
                 prog[dest] = prog[src1] * prog[src2];
             }
@@ -102,14 +110,33 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_fix_program() {
-        assert_eq!(Err(Error::InvalidProgram), fix_program(vec![1, 2]));
-        assert_eq!(Ok(vec![1, 12, 2]), fix_program(vec![1, 2, 3]));
-        assert_eq!(Ok(vec![1, 12, 2, 4]), fix_program(vec![1, 2, 3, 4]));
+    fn test_set_input() {
+        assert_eq!(Err(Error::ProgramTooShort), set_input(vec![1, 2], 12, 2));
+        assert_eq!(Ok(vec![1, 12, 2]), set_input(vec![1, 2, 3], 12, 2));
+        assert_eq!(Ok(vec![1, 12, 2, 4]), set_input(vec![1, 2, 3, 4], 12, 2));
     }
 
     #[test]
     fn test_run_intcode() {
+        assert_eq!(Err(Error::ProgramTooShort), run_intcode(vec![]));
+        assert_eq!(
+            Err(Error::UnknownOpCode(100)),
+            run_intcode(vec![1, 0, 0, 0, 100])
+        );
+        assert_eq!(Err(Error::SegFault), run_intcode(vec![1, 0, 0, 5, 99]));
+        assert_eq!(
+            Err(Error::NotEnoughParams(OpCode::Add)),
+            run_intcode(vec![1, 1, 1])
+        );
+        assert_eq!(
+            Err(Error::NotEnoughParams(OpCode::Multiply)),
+            run_intcode(vec![2, 1, 1])
+        );
+        assert_eq!(Ok(vec![2, 0, 0, 0]), run_intcode(vec![1, 0, 0, 0]));
+        assert_eq!(
+            Ok(vec![1, 1, 5, 4, 99, 98]),
+            run_intcode(vec![1, 1, 5, 4, 0, 98])
+        );
         assert_eq!(
             Ok(vec![3500, 9, 10, 70, 2, 3, 11, 0, 99, 30, 40, 50]),
             run_intcode(vec![1, 9, 10, 3, 2, 3, 11, 0, 99, 30, 40, 50])
