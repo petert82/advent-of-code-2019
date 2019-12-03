@@ -41,10 +41,18 @@ impl fmt::Display for Error {
 type Program = Vec<i64>;
 
 pub fn part1(input: Program) {
-    match set_input(input, 12, 2).and_then(run_intcode) {
-        Ok(mem) => println!("Output is: {}", mem[0]),
+    match execute(&input, 12, 2) {
+        Ok(output) => println!("Output is: {}", output),
         Err(e) => println!("{}", e),
     }
+}
+
+fn execute(input: &Program, noun: i64, verb: i64) -> Result<i64, Error> {
+    let memory = input.clone();
+
+    set_input(memory, noun, verb)
+        .and_then(run_intcode)
+        .and_then(|mem| Ok(mem[0]))
 }
 
 const NOUN_INDEX: usize = 1;
