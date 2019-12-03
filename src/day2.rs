@@ -47,6 +47,26 @@ pub fn part1(input: Program) {
     }
 }
 
+pub fn part2(input: Program) {
+    let target = 19690720;
+
+    for n in 0..=99 {
+        for v in 0..=99 {
+            if let Ok(output) = execute(&input, n, v) {
+                if output == target {
+                    println!("Found input values: noun={} verb={}", n, v);
+                    println!("100 * {} + {} = {}", n, v, 100 * n + v);
+                    return;
+                }
+            }
+        }
+    }
+    println!(
+        "Did not find any input values that create output of {}",
+        target
+    );
+}
+
 fn execute(input: &Program, noun: i64, verb: i64) -> Result<i64, Error> {
     let memory = input.clone();
 
