@@ -44,23 +44,32 @@ impl TryFrom<&str> for Instruction {
 type Coord = (i64, i64);
 
 pub fn part1(input: &str) {
-    let paths_res: std::result::Result<Vec<_>, Error> = input.lines().map(get_path).collect();
-    let paths = match paths_res {
-        Ok(paths) => paths,
-        Err(why) => {
-            println!("Could not parse input instructions: {:?}", why);
-            return;
-        }
+    let paths = match get_paths(input) {
+        None => return,
+        Some(paths) => paths,
     };
-    if paths.len() != 2 {
-        println!("Expected two input paths");
-        return;
-    }
 
     match closest_intersection_by_manhattan(&paths[0], &paths[1]) {
         Some(dist) => println!("The closest intersection is {} units away", dist),
         None => println!("There are no intersections"),
     }
+}
+
+fn get_paths(input: &str) -> Option<Vec<Vec<Coord>>> {
+    let paths_res: std::result::Result<Vec<_>, Error> = input.lines().map(get_path).collect();
+    let paths = match paths_res {
+        Ok(paths) => paths,
+        Err(why) => {
+            println!("Could not parse input instructions: {:?}", why);
+            return None;
+        }
+    };
+    if paths.len() != 2 {
+        println!("Expected two input paths");
+        return None;
+    }
+
+    Some(paths)
 }
 
 fn closest_intersection_by_manhattan(path1: &Vec<Coord>, path2: &Vec<Coord>) -> Option<i64> {
