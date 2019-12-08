@@ -50,7 +50,25 @@ pub fn part1(input: &str) {
     };
 
     match closest_intersection_by_manhattan(&paths[0], &paths[1]) {
-        Some(dist) => println!("The closest intersection is {} units away", dist),
+        Some(dist) => println!(
+            "The closest intersection by manhattan distance is {} units away",
+            dist
+        ),
+        None => println!("There are no intersections"),
+    }
+}
+
+pub fn part2(input: &str) {
+    let paths = match get_paths(input) {
+        None => return,
+        Some(paths) => paths,
+    };
+
+    match closest_intersection_by_steps(&paths[0], &paths[1]) {
+        Some(dist) => println!(
+            "The closest intersection by stepping along the paths is {} units away",
+            dist
+        ),
         None => println!("There are no intersections"),
     }
 }
@@ -72,6 +90,20 @@ fn get_paths(input: &str) -> Option<Vec<Vec<Coord>>> {
     Some(paths)
 }
 
+fn get_path(line: &str) -> Result<Vec<Coord>, Error> {
+    let instructions = line
+        .split(',')
+        .map(|instruction| Instruction::try_from(instruction))
+        .collect::<Result<Vec<_>, Error>>()?;
+    let mut path = vec![(0, 0)];
+    for i in instructions.iter() {
+        path = apply_instruction(i, path);
+    }
+    Ok(path)
+}
+
+// Returns the closest intersection of the two paths by calculating the manhattan distance of the
+// intersection from the origin.
 fn closest_intersection_by_manhattan(path1: &Vec<Coord>, path2: &Vec<Coord>) -> Option<i64> {
     let coords1: HashSet<Coord> = path1.iter().cloned().collect();
     let coords2: HashSet<Coord> = path2.iter().cloned().collect();
@@ -93,16 +125,29 @@ fn closest_intersection_by_manhattan(path1: &Vec<Coord>, path2: &Vec<Coord>) -> 
     })
 }
 
-fn get_path(line: &str) -> Result<Vec<Coord>, Error> {
-    let instructions = line
-        .split(',')
-        .map(|instruction| Instruction::try_from(instruction))
-        .collect::<Result<Vec<_>, Error>>()?;
-    let mut path = vec![(0, 0)];
-    for i in instructions.iter() {
-        path = apply_instruction(i, path);
-    }
-    Ok(path)
+// Returns the closest intersection of the two paths by calculating the distance along the paths.
+fn closest_intersection_by_steps(path1: &Vec<Coord>, path2: &Vec<Coord>) -> Option<i64> {
+    let coords1: HashSet<Coord> = path1.iter().cloned().collect();
+    let coords2: HashSet<Coord> = path2.iter().cloned().collect();
+    coords1.intersection(&coords2).fold(None, |closest, coord| {
+        if *coord == (0, 0) {
+            return closest;
+        }
+        let dist1 = path1.iter().position(|&c| c == *coord).unwrap();
+        let dist2 = path2.iter().position(|&c| c == *coord).unwrap();
+        let tot_dist = (dist1 + dist2) as i64;
+
+        match closest {
+            None => Some(tot_dist),
+            Some(x) => {
+                if tot_dist < x {
+                    Some(tot_dist)
+                } else {
+                    closest
+                }
+            }
+        }
+    })
 }
 
 fn apply_instruction(instruction: &Instruction, mut path: Vec<Coord>) -> Vec<Coord> {
@@ -240,7 +285,7 @@ mod tests {
     }
 
     #[test]
-    fn test_closest_intersection() {
+    fn test_closest_intersection_by_manhattan() {
         let path1 = get_path("R1").unwrap();
         let path2 = get_path("U1").unwrap();
         assert_eq!(None, closest_intersection_by_manhattan(&path1, &path2));
@@ -256,5 +301,28 @@ mod tests {
         let path1 = get_path("R75,D30,R83,U83,L12,D49,R71,U7,L72").unwrap();
         let path2 = get_path("U62,R66,U55,R34,D71,R55,D58,R83").unwrap();
         assert_eq!(Some(159), closest_intersection_by_manhattan(&path1, &path2));
+
+        let path1 = get_path("R98,U47,R26,D63,R33,U87,L62,D20,R33,U53,R51").unwrap();
+        let path2 = get_path("U98,R91,D20,R16,D67,R40,U7,R15,U6,R7").unwrap();
+        assert_eq!(Some(135), closest_intersection_by_manhattan(&path1, &path2));
+    }
+
+    #[test]
+    fn test_closest_intersection_by_steps() {
+        let path1 = get_path("R1").unwrap();
+        let path2 = get_path("U1").unwrap();
+        assert_eq!(None, closest_intersection_by_steps(&path1, &path2));
+
+        let path1 = get_path("R8,U5,L5,D3").unwrap();
+        let path2 = get_path("U7,R6,D4,L4").unwrap();
+        assert_eq!(Some(30), closest_intersection_by_steps(&path1, &path2));
+
+        let path1 = get_path("R75,D30,R83,U83,L12,D49,R71,U7,L72").unwrap();
+        let path2 = get_path("U62,R66,U55,R34,D71,R55,D58,R83").unwrap();
+        assert_eq!(Some(610), closest_intersection_by_steps(&path1, &path2));
+
+        let path1 = get_path("R98,U47,R26,D63,R33,U87,L62,D20,R33,U53,R51").unwrap();
+        let path2 = get_path("U98,R91,D20,R16,D67,R40,U7,R15,U6,R7").unwrap();
+        assert_eq!(Some(410), closest_intersection_by_steps(&path1, &path2));
     }
 }
